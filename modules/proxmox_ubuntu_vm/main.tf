@@ -4,7 +4,7 @@ terraform {
   required_providers {
     proxmox = {
       source  = "telmate/proxmox"
-      version = "2.9.14"
+      version = "3.0.1-rc3"
     }
   }
 }
@@ -23,33 +23,43 @@ resource "proxmox_vm_qemu" "ubuntu_vm" {
   sockets          = var.vm_sockets
   cpu              = var.vm_cpu_type
   memory           = var.vm_memory_mb
-  bootdisk         = "virtio0"
+  bootdisk         = "scsi0"
   scsihw           = "virtio-scsi-single"
   hotplug          = "network,disk,usb,memory,cpu"
   numa             = true
-  automatic_reboot = false
+  automatic_reboot = true
   desc             = "This VM is managed by Terraform, cloned from an Cloud-init Ubuntu image, configured with an internal network and supports CPU hotplug/hot unplug and memory hotplug capabilities."
   tags             = var.vm_tags
 
-  disk {
-    slot     = 0
-    type     = "virtio"
-    storage  = var.vm_os_disk_storage
-    size     = "${var.vm_os_disk_size_gb}G"
-    iothread = 1
-  }
-
-  dynamic "disk" {
-    for_each = var.add_worker_node_data_disk ? [var.worker_node_data_disk_size] : []
-
-    content {
-      slot     = 1
-      type     = "virtio"
-      storage  = var.worker_node_data_disk_storage
-      size     = "${var.worker_node_data_disk_size}G"
-      iothread = 1
+  disks {
+    scsi {
+      scsi0 {
+          disk {
+            size     = "${var.vm_os_disk_size_gb}G"
+            storage  = var.vm_os_disk_storage
+            iothread = true 
+          }
+        }
+      dynamic "scsi1" {
+        for_each = var.add_worker_node_data_disk ? [var.worker_node_data_disk_size] : []
+        content {
+          disk {
+            size     = "${var.worker_node_data_disk_size}G"
+            storage  = var.worker_node_data_disk_storage
+            iothread = true
+          }
+        }
+      }
+    }
+    ide {
+      ide0 {
+        cloudinit {
+          storage = var.vm_os_disk_storage
+        }
+      }
     }
   }
+
 
   network {
     model  = "virtio"

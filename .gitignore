@@ -5,7 +5,7 @@
 *.tfplan
 cloud.tf
 tmp
-
+*.tfvars
 # OS files
 Icon*
 .DS_Store
